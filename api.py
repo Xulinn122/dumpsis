@@ -1,10 +1,13 @@
+import os
+import subprocess
 import asyncio
 from flask import Flask, request, jsonify
 from playwright.async_api import async_playwright
-from playwright.__main__ import main as playwright_main
 
-# 🔧 Instala automaticamente o Chromium no Render
-asyncio.run(asyncio.to_thread(playwright_main, ["install", "chromium"]))
+# 🔧 Instalar Chromium automaticamente (modo seguro)
+print("🔧 Instalando Chromium...")
+subprocess.run(["playwright", "install", "chromium"], check=True)
+print("✅ Chromium instalado com sucesso!")
 
 app = Flask(__name__)
 
@@ -28,21 +31,18 @@ async def consulta():
             await page.fill("#senha", "by_y4ziok")
             await page.click("button[type=submit], input[type=submit], #botaoEntrar")
 
-            # Aguarda o carregamento pós-login
             await page.wait_for_load_state("networkidle")
 
-            # Ir para o formulário de busca (ajuste se necessário)
             await page.goto("https://sisregiii.saude.gov.br/geral/buscaCnsCpf.do")
             await page.fill("#cpfCns", cpf)
             await page.click("input[type=submit]")
-
             await page.wait_for_load_state("networkidle")
 
             html = await page.content()
 
-            # Extrai os dados principais (básico)
+            # Extrai dados simples do HTML
+            import re
             def extrair(campo):
-                import re
                 match = re.search(f"{campo}\\s*[:|-]\\s*(.*?)<", html, re.IGNORECASE)
                 return match.group(1).strip() if match else None
 
@@ -60,4 +60,5 @@ async def consulta():
         return jsonify({"erro": str(e)})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
