@@ -16,45 +16,48 @@ def home():
     return jsonify({"status": "✅ API SISREGI está online! Use /consulta?cpf=XXXXXXXXXXX"})
 
 @app.route('/consulta', methods=['GET'])
-async def consulta():
+def consulta():
     cpf = request.args.get('cpf')
     if not cpf:
         return jsonify({"erro": "Parâmetro 'cpf' é obrigatório."}), 400
 
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+        import asyncio
+        from playwright.async_api import async_playwright
 
-            await page.goto("https://sisregiii.saude.gov.br/")
-            await page.fill("#usuario", "y4ziok")
-            await page.fill("#senha", "by_y4ziok")
-            await page.click("button[type=submit], input[type=submit], #botaoEntrar")
+        async def main(cpf):
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
 
-            await page.wait_for_load_state("networkidle")
+                await page.goto("https://sisregiii.saude.gov.br/")
+                await page.fill("#usuario", "y4ziok")
+                await page.fill("#senha", "by_y4ziok")
+                await page.click("button[type=submit], input[type=submit], #botaoEntrar")
+                await page.wait_for_load_state("networkidle")
 
-            await page.goto("https://sisregiii.saude.gov.br/geral/buscaCnsCpf.do")
-            await page.fill("#cpfCns", cpf)
-            await page.click("input[type=submit]")
-            await page.wait_for_load_state("networkidle")
+                await page.goto("https://sisregiii.saude.gov.br/geral/buscaCnsCpf.do")
+                await page.fill("#cpfCns", cpf)
+                await page.click("input[type=submit]")
+                await page.wait_for_load_state("networkidle")
 
-            html = await page.content()
+                html = await page.content()
+                import re
+                def extrair(campo):
+                    match = re.search(f"{campo}\\s*[:|-]\\s*(.*?)<", html, re.IGNORECASE)
+                    return match.group(1).strip() if match else None
 
-            # Extrai dados simples do HTML
-            import re
-            def extrair(campo):
-                match = re.search(f"{campo}\\s*[:|-]\\s*(.*?)<", html, re.IGNORECASE)
-                return match.group(1).strip() if match else None
+                dados = {
+                    "CNS": extrair("CNS"),
+                    "Nome": extrair("Nome"),
+                    "Data de Nascimento": extrair("Data de Nascimento"),
+                    "Sexo": extrair("Sexo")
+                }
+                await browser.close()
+                return dados
 
-            dados = {
-                "CNS": extrair("CNS"),
-                "Nome": extrair("Nome"),
-                "Data de Nascimento": extrair("Data de Nascimento"),
-                "Sexo": extrair("Sexo")
-            }
-
-            await browser.close()
-            return jsonify(dados)
+        result = asyncio.run(main(cpf))
+        return jsonify(result)
 
     except Exception as e:
         return jsonify({"erro": str(e)})
