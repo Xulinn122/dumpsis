@@ -4,9 +4,13 @@ from fastapi.responses import JSONResponse
 import asyncio
 from sisregi import open_cns
 import asyncio
-from playwright.__main__ import main as playwright_main
+import subprocess
 
-asyncio.run(asyncio.to_thread(playwright_main, ["install", "chromium"]))
+# Instala o Chromium automaticamente se ainda não estiver instalado
+try:
+    subprocess.run(["playwright", "install", "chromium"], check=True)
+except Exception as e:
+    print("Aviso: Falha ao instalar o Chromium automaticamente:", e)
 
 app = FastAPI(title="API SISREG CNS", description="Consulta CNS automatizada via Playwright", version="1.0")
 
